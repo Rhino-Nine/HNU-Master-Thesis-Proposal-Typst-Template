@@ -1,12 +1,12 @@
 [package]
-name = "std-sjtu-bachelor-thesis-proposal"
+name = "HNU-Master-thesis-proposal"
 version = "0.1.0"
 entrypoint = "lib.typ"
 authors = ["zh1-z"]
 license = "MIT"
-description = "上海交通大学本科生毕业设计（论文）开题报告模板 SJTU Bachelor Thesis Proposal Template"
-repository = "https://github.com/zh1-z/SJTU-Bachelor-Thesis-Proposal-Typst-Template"
-keywords = ["thesis", "proposal", "sjtu", "bachelor", "chinese", "shanghai-jiao-tong-university", "上海交通大学", "上海交大", "本科生", "毕业论文", "毕业设计", "毕业", "开题报告"]
+description = "海南大学研究生毕业设计（论文）开题报告模板 HNU Master Thesis Proposal Template"
+repository = "https://github.com/Rhino-Nine/HNU-Master-Thesis-Proposal-Typst-Template"
+keywords = ["thesis", "proposal", "hnu", "master", "chinese", "hai3-nan2-university", "海南大学", "研究生", "毕业论文", "毕业设计", "毕业", "开题报告"]
 categories = ["thesis", "office", "report"]
 
 [template]

@@ -3,6 +3,10 @@
 #let mychecked = text(weight: "bold", font: "Times New Roman", "✓")
 #let myunchecked = text(font: "SimSun", size: 1.0em, "□")
 
+// ============================================================
+//  project —— 文档骨架：封面 → 正文版式（页眉 / 页面边框 / 信息表）
+//  用法见 main.typ 顶部的参数注释
+// ============================================================
 #let project(
   cover-title: "",
   name: "",
@@ -10,12 +14,16 @@
   major: "",
   supervisor: "",
   school: "",
+  enrollment: "",
+  // 研究生类别："academic-doctor" | "professional-doctor" | "academic-master" | "professional-master"
+  degree-type: "master-professional",
   thesis-title: "",
   subject-source: "",
   subject-nature: "",
   subject-id: "",
   body,
 ) = {
+  // 正文首页题目留空时沿用封面题目
   let thesis-title = if thesis-title == none or thesis-title == "" or thesis-title == cover-title {
     cover-title
   } else {
@@ -30,6 +38,7 @@
   show: show-cn-fakebold
   set text(font: ("Times New Roman", "SimSun"), size: 12pt, lang: "zh")
 
+  // ---- 标题样式：一级黑体另起一页（编号手写“一、”）；二级（一）、三级 1.、四级 1.1. ----
   set heading(numbering: "1.1.1")
   show heading: it => {
     let nums = counter(heading).at(it.location())
@@ -39,87 +48,93 @@
     if it.level == 1 {
       title-font = ("Times New Roman", "SimHei")
       title-weight = "regular"
-      n_str = none
+      // 一级自动编“一、”；个别标题用 #heading(numbering: none) 关闭编号
+      n_str = if it.numbering == none { none } else { numbering("一、", nums.at(0)) }
       colbreak(weak: true)
     } else {
       title-font = ("Times New Roman", "SimSun")
-      title-weight = "bold"
-      let display_nums = nums.slice(1) 
-      n_str = numbering("1.1.1", ..display_nums)
+      title-weight = "regular" // 仅一级加粗，二~四级常规字重（cuti 假加粗会更显重）
+      // 公文式编号：三级只显示本级序号，四级显示“父级.本级”
+      if it.level == 2 {
+        n_str = numbering("（一）", nums.at(1))
+      } else if it.level == 3 {
+        n_str = numbering("1.", nums.at(2))
+      } else {
+        n_str = numbering("1.1.", nums.at(2), nums.at(3))
+      }
     }
     set text(font: title-font, weight: title-weight, size: 12pt)
     set par(first-line-indent: 0pt)
     if it.level > 1 {
       v(2em, weak: true)
     }
-    grid(
-      columns: (auto, 1fr),
-      column-gutter: if n_str != none { 0.5em } else { 0pt },
-      inset: 0pt,
-      if n_str != none [#n_str],
+    // 编号与标题同段排版，保证基线对齐
+    // （grid 分列会因中西文行盒高度不同，把短编号顶成“上标”状）
+    if n_str != none {
+      [#n_str#h(0.5em)#it.body]
+    } else {
       [#it.body]
-    )
+    }
     v(1.5em, weak: true)
   }
 
+  // ---- 引用二级及以下标题时按公文编号显示 ----
   show ref: it => {
     let el = it.element
     if el != none and el.func() == heading {
       let nums = counter(heading).at(el.location())
       if el.level == 1 {
         it
+      } else if el.level == 2 {
+        link(el.location(), [小节 #numbering("（一）", nums.at(1))])
+      } else if el.level == 3 {
+        link(el.location(), [小节 #numbering("1.", nums.at(2))])
       } else {
-        let display_nums = nums.slice(1)
-        let n_str = numbering("1.1", ..display_nums)
-        link(el.location(), [小节 #n_str])
+        link(el.location(), [小节 #numbering("1.1.", nums.at(2), nums.at(3))])
       }
     } else {
       it
     }
   }
 
+  // ==================== 封面 ====================
   set page(numbering: none)
   align(center)[
-    #image("./figures/sjtu-title.png", width: 14.8cm)
-    #v(0.0cm)
+    #v(2cm)
     #box(scale(x: 110%, origin: center)[
-      #text(font: ("Times New Roman", "SimSun"), size: 18pt)[SHANGHAI JIAO TONG UNIVERSITY]\
+      #text(size: 42pt, weight: "bold")[海南大学]\
+      #v(0.1em)
+      #text(size: 32pt, weight: "bold")[研究生学位论文开题报告书]
     ])
-    #v(0.5cm)
-    #text(size: 22pt, weight: "bold")[本科生毕业设计（论文）开题报告]
-    #v(0.5cm)
-    #image("./figures/sjtu-logo.png", width: 5.77cm)
-    #v(0.5cm)
-    #text(size: 16pt,font: ("Times New Roman", "KaiTi"))[
-      #grid(
-        columns: (80pt, 320pt),
-        column-gutter: 0em,
-        [
-          #set align(left + horizon)
-          #block(
-            width: 100%, 
-            stroke: (bottom: white + 0.5pt),
-            inset: (top: 0pt, bottom: 5pt),
-          )[论文题目：]
-        ],
-        [
-          #set align(center + horizon)
-          #block(
-            width: 100%, 
-            stroke: (bottom: 0.5pt),
-            inset: (top: 0pt, bottom: 5pt),
-          )[#cover-title]
-        ]
-      )
-    ]
   ]
-  
+
+  let degree-option(selected, key, label) = {
+    if selected == key { [#mychecked #label] } else { [#myunchecked #label] }
+  }
+  v(2cm)
+  align(center)[
+    #grid(
+      columns: (auto, auto, auto),
+      column-gutter: 2em,
+      row-gutter: 0.4em,
+      align: left + horizon,
+      text(font: "KaiTi", size: 16pt)[研究生类别：],
+      text(font: "KaiTi", size: 16pt)[#degree-option(degree-type, "academic-doctor", [学术学位博士])],
+      text(font: "KaiTi", size: 16pt)[#degree-option(degree-type, "professional-doctor", [专业学位博士])],
+      [],
+      text(font: "KaiTi", size: 16pt)[#degree-option(degree-type, "academic-master", [学术学位硕士])],
+      text(font: "KaiTi", size: 16pt)[#degree-option(degree-type, "master-professional", [专业学位硕士])],
+    )
+  ]
+  v(5cm)
+
+  // 封面栏目：标签 + 下划线内容格
   let field(label, content) = (
     [
       #set align(left + horizon)
       #block(
         width: 100%,
-        stroke: (bottom: white + 0.5pt), 
+        stroke: (bottom: white + 0.5pt),
         inset: (top: 0pt, bottom: 5pt),
       )[
         #set text(font: ("KaiTi"))
@@ -129,8 +144,8 @@
     [
       #set align(center + horizon)
       #block(
-        width: 100%, 
-        stroke: (bottom: 0.5pt), 
+        width: 100%,
+        stroke: (bottom: 0.5pt),
         inset: (top: 0pt, bottom: 5pt),
       )[
         #set text(font: ("Times New Roman", "KaiTi"), size: 16pt)
@@ -145,58 +160,20 @@
       columns: (80pt, 180pt),
       column-gutter: 0em,
       row-gutter: 10pt,
-      ..field("学生姓名:", name),
-      ..field("学生学号:", student-id),
-      ..field([专#h(2em)业:], major),
-      ..field("指导教师:", supervisor),
-      ..field("学院(系):", school),
+      ..field([姓#h(2em)名：], name),
+      ..field([学#h(2em)号：], student-id),
+      ..field([专业名称：], major),
+      ..field([研究方向：], school),
+      ..field([导师姓名：], supervisor),
+      ..field([入学年月：], enrollment),
     )
-    #v(10pt)
-    #text(font: ("KaiTi"), size: 16pt)[教务处制表]
+    #v(30pt)
+    #text(font: ("KaiTi"), size: 16pt)[填表日期：#h(4em)年#h(2em)月#h(2em)日]
   ]
 
   pagebreak()
 
-  align(center)[
-    #v(2cm)
-    #set text(font: ("Times New Roman", "SimHei"), size: 18pt, weight: "bold")
-    #{ let q = h(0.18em); [填 #q 表 #q 说 #q 明] }
-    #v(18pt)
-  ]
-
-  set text(font: ("Simsun"), size: 14pt)
-  set par(first-line-indent: 0pt, hanging-indent: 0cm,  leading: 20pt, justify: true)
-  enum(
-    indent: 0em,
-    body-indent: 0.74cm - 1em,
-    pad(right: 0.2cm)[
-      根据《上海交通大学关于本科生毕业设计(论文)工作的若干规定》要求，每位学生必须认真撰写《毕业设计（论文）开题报告》。
-    ],
-    pad(right: 0.2cm)[
-      每位学生应在指导教师的指导下认真、实事求是地填写各项内容。文字表达要明确、严谨，语句通顺，条理清晰。外来语要同时用原文和中文表达，第一次出现的缩写词，须注出全称。
-    ],
-    pad(right: 0.2cm)[
-      开题前，须进行文献查阅，要求与论文研究有关的主要参考文献阅读数量不少于10篇，其中外文资料应占一定比例。参考文献的书写请参照《上海交通大学本科生毕业设计（论文）撰写规范》。
-    ],
-    pad(right: 0.2cm)[
-      毕业设计（论文）开题报告总字数应满足本院（系）要求。
-    ],
-    pad(right: 0.2cm)[
-      请用宋体小四号字体填写，并用A4纸打印，于左侧装订成册。
-    ],
-    pad(right: 0.2cm)[
-      该表填写完毕后，须请指导教师审核，并签署意见。
-    ],
-    pad(right: 0.2cm)[
-      《上海交通大学本科生毕业设计（论文）开题报告》将作为答辩资格审查的主要材料之一。
-    ],
-    pad(right: 0.2cm)[
-      本表格不够可自行扩页。
-    ]
-  )
-
-  pagebreak()
-
+  // ==================== 正文版式 ====================
   set page(
     margin: (
       top: 2.82cm,
@@ -209,14 +186,14 @@
       #set text(size: 9pt, font: ("SimSun"))
       #grid(
         columns: (1fr, 1fr),
-        align: bottom,
-        image("./figures/sjtu-logo-title.png", width: 4.8cm),
-        align(right)[毕业设计（论文）开题报告]
+        align(left)[海南大学],
+        align(right)[研究生学位论文开题报告书]
       )
       #v(-0.25cm)
       #line(length: 100%, stroke: 0.5pt)
     ],
-    background: place(top + left, 
+    // 整页边框：正文各表格只画内部线，外框由本框统一充当
+    background: place(top + left,
       dx: 3.18cm,
       dy: 2.82cm + 0.5cm,
     )[
@@ -226,8 +203,16 @@
         stroke: 0.5pt,
       )
     ],
-    numbering: none,
+    // 页脚居中页码“— n —”（与页眉同字号字体）
+    footer: [
+      #set align(center)
+      #set text(size: 9pt, font: ("Times New Roman", "SimSun"))
+      #context counter(page).display("— 1 —")
+    ],
+    numbering: "— 1 —",
   )
+  // 正文页码从第 1 页起（封面不编页码）
+  counter(page).update(1)
   v(0.1cm)
   align(center)[
     #block(
@@ -235,23 +220,17 @@
       width: 15cm,
       inset: (top: 1.5em, bottom: 1.5em),
       stroke: none,
-      text(
-        size: 15pt, 
-        font: ("KaiTi"), 
-        weight: "bold"
-      )[毕业设计(论文)开题报告]
     )
   ]
   v(-0.6cm)
-  set text(size: 12pt,font: ("Times New Roman", "Simsun"))
+
+  // 正文首页顶部的信息表
+  set text(size: 12pt, font: ("Times New Roman", "Simsun"))
   set par(leading: 0.65em)
   grid(
-    columns: (auto, 1fr, auto, 1fr, auto, 1fr),
+    columns: (auto, 1fr, 1fr, auto),
     align: center + horizon,
-    inset: (
-      x: 5pt,
-      y: 8pt
-    ),
+    inset: (x: 5pt, y: 8pt),
     stroke: (x, y) => (
       top: 0.5pt,
       bottom: 0.5pt,
@@ -259,13 +238,12 @@
       right: 0pt,
     ),
     grid.cell(colspan: 1)[论文题目],
-    grid.cell(colspan: 5, align: center)[#thesis-title],
-    [课题来源], [#subject-source],
-    [课题性质], [#subject-nature],
-    [项目编号], [#subject-id],
+    grid.cell(colspan: 3, align: center)[#thesis-title],
+    [计划定稿], [#subject-source],
+    [是否与导师科研课题相关], [#subject-nature],
   )
   v(-0.8cm)
-  
+
   show: rest => pad(
     top: 0.5cm + 0.3cm,
     bottom: 0.3cm,
@@ -273,7 +251,7 @@
     right: 0.3cm,
     rest
   )
-  set text(size: 12pt,font: ("Times New Roman", "Simsun"))
+  set text(size: 12pt, font: ("Times New Roman", "Simsun"))
   set par(
     justify: true,
     leading: 1em,
@@ -283,73 +261,121 @@
   set list(indent: 2em)
   set enum(indent: 2em)
   set terms(indent: 2em)
-  
+
+  // 中文强调字倾斜处理
   show emph: it => {
-  show regex("[\p{Unified_Ideograph}\p{Punctuation}]"): char   => {
+    show regex("[\p{Unified_Ideograph}\p{Punctuation}]"): char => {
       box(skew(ax: -12deg, char))
     }
     it
   }
-  show figure.where(
-    kind: table
-  ): set figure.caption(position: top)
+  show figure.where(kind: table): set figure.caption(position: top)
   body
 }
 
+// ============================================================
+//  opinion-page —— 开题报告结果页（整页表格）
+//  调用前先写一级标题，例如：= 七、开题报告结果
+//  参数：*comment 传意见内容；group-result / result 取
+//        "agree" | "revised" | "disagree"；experts 为
+//        ((姓名, 职称, 单位), ...) 列表，留空则给 5 行空白签名行
+// ============================================================
 #let opinion-page(
   supervisor-comment: [],
+  review-comment: [],
   school-comment: [],
+  group-result: none,
   result: none,
+  time: [#h(4em)年#h(1em)月#h(1em)日],
+  place: [#h(1.2cm)],
+  experts: (),
 ) = {
-  colbreak()
-  grid(
-    columns: (100%),
-    rows: (3fr, 2fr),
-    stroke: none,
-    gutter: 0pt,
-    [
-      #set align(top)
-      #text(par(first-line-indent: 0pt)[指导教师意见（课题难度是否适中、工作量是否饱满、进度安排是否合理、工作条件是否具备、是否同意开题等）：]) 
-      #v(0.5em)
-      
-      #supervisor-comment
+  // 竖排标签
+  let vlabel(txt) = rotate(-90deg, reflow: true)[#txt]
 
-      #align(bottom + right)[
-        #v(1em)
-        指导教师签名：
-        #box(width: 5cm, stroke: (bottom: 0.5pt), inset: (bottom: 3pt), baseline: 3pt)[] \
-        #v(0.8em)
-        年#h(1cm)月#h(1cm)日
-        #v(1em)
-      ]
-    ],
-    [
-      #place(top + left, dx: -0.3cm)[
-        #line(length: 100% + 0.6cm, stroke: 0.5pt)
-      ]
-      #set align(top)
+  let one-option(r, key, label) = {
+    if r == key { [#mychecked #label] } else { [#myunchecked #label] }
+  }
+  let three-options(r) = {
+    one-option(r, "agree", [同意开题])
+    h(2.5em)
+    one-option(r, "revised", [同意修改后开题])
+    h(2.5em)
+    one-option(r, "disagree", [不同意开题])
+  }
+
+  // 签名行：签名横线 + 年月日，靠右下
+  let sign-date(who) = align(right)[
+    #who：
+    #box(width: 4cm, stroke: (bottom: 0.5pt), inset: (bottom: 3pt), baseline: 3pt)[] \
+    #v(0.8em)
+    年#h(0.8cm)月#h(0.8cm)日
+  ]
+
+  // 意见格子的文字行距（比正文紧凑）
+  let tight-par = {
+    set par(leading: 0.55em, spacing: 0.6em)
+  }
+
+  // 不传 experts 时留 5 行空白
+  let expert-rows = if experts.len() > 0 { experts.len() } else { 5 }
+  let expert-cells = if experts.len() > 0 {
+    experts.map(e => (e.at(0), e.at(1), e.at(2), [])).flatten()
+  } else {
+    range(5).map(i => ([], [], [], [])).flatten()
+  }
+  let blank-row-heights = range(expert-rows).map(i => 0.8cm)
+  let heights = (4.2cm, 0.9cm, 0.9cm, 0.9cm) + blank-row-heights + (5.2cm, auto)
+
+  pad(x: -0.3cm, table(
+    columns: (1.2cm, 3cm, 3.2cm, 1fr, 3cm),
+    rows: heights,
+    // 描边：只画内部线，外框由页面背景方框充当
+    stroke: (x, y) => (
+      top: 0.5pt,
+      bottom: 0.5pt,
+      left: if x > 0 { 0.5pt } else { 0pt },
+      right: 0pt,
+    ),
+    align: center + horizon,
+
+    // ① 指导教师审阅意见
+    table.cell(colspan: 5, align: left + top)[
+      #tight-par
       #v(1em)
-      #text(par(first-line-indent: 0pt)[学院（系）意见：])
-      #v(0.5em)
-      
-      #school-comment
+      #supervisor-comment
+      #v(1fr)
+      #sign-date([指导教师签名])
+    ],
 
-      #align(bottom)[
-        #par(first-line-indent: 2em)[
-          审 查 结 果： 
-          #{if result == "agree" [#mychecked 同 意] else [#myunchecked 同 意]} 
-          #h(3em) 
-          #{if result == "disagree" [#mychecked 不 同 意] else [#myunchecked 不 同 意]}
-        ]
-        #align(right)[
-          #v(0.8em)
-          学院（系）负责人签名：
-          #box(width: 5cm, stroke: (bottom: 0.5pt), inset: (bottom: 3pt), baseline: 3pt)[] \
-          #v(0.8em)
-          #h(2em) 年#h(1cm)月#h(1cm)日
-          #v(0.5em)
-        ]
-      ]
-    ]
-  )
+    // ② 开题报告会情况（竖排标签纵向合并 4+N 行）
+    table.cell(rowspan: 4 + expert-rows)[#vlabel[开题报告会情况]],
+    table.cell(colspan: 2, align: left)[时间：#time],
+    table.cell(colspan: 2, align: left)[地点：#place],
+    table.cell(colspan: 4, align: left)[评审专家信息],
+    [姓名], [职称], [工作单位], [签名],
+    ..expert-cells,
+
+    // ③ 评审小组意见
+    table.cell(colspan: 4, align: left + top, inset: (x: 6pt, y: 5pt))[
+      #tight-par
+      评审小组意见（简要评议意见）：
+      #v(0.1em)
+      #review-comment
+      #align(center)[#three-options(group-result)]
+      #v(0.1em)
+      #sign-date([组长签名])
+    ],
+
+    // ④ 学院审核意见
+    [#vlabel[学院审核意见]],
+    table.cell(colspan: 4, align: left + top, inset: (x: 6pt, y: 5pt))[
+      #tight-par
+      #school-comment
+      #v(1fr)
+      #align(center)[#three-options(result)]
+      #v(0.5em)
+      #sign-date([学院盖章])
+    ],
+  ))
 }
